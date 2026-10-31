@@ -1,0 +1,95 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      STUDYRAG_POSTGRES_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      STUDYRAG_SMTP_URL: ${STUDYRAG_SMTP_URL:-}
+      STUDYRAG_EMAIL_FROM: ${STUDYRAG_EMAIL_FROM:-}
+      STUDYRAG_COOKIE_SECURE: ${STUDYRAG_COOKIE_SECURE:-false}
+      STUDYRAG_COOKIE_SAMESITE: ${STUDYRAG_COOKIE_SAMESITE:-lax}
+      STUDYRAG_RATE_LIMIT_HMAC_KEY: ${STUDYRAG_RATE_LIMIT_HMAC_KEY:-}
+      STUDYRAG_RATE_LIMIT_WINDOW_SECONDS: ${STUDYRAG_RATE_LIMIT_WINDOW_SECONDS:-900}
+      STUDYRAG_RATE_LIMIT_LOGIN: ${STUDYRAG_RATE_LIMIT_LOGIN:-10}
+      STUDYRAG_RATE_LIMIT_LOGIN_IP: ${STUDYRAG_RATE_LIMIT_LOGIN_IP:-300}
+      STUDYRAG_RATE_LIMIT_SIGNUP: ${STUDYRAG_RATE_LIMIT_SIGNUP:-5}
+      STUDYRAG_RATE_LIMIT_SIGNUP_IP: ${STUDYRAG_RATE_LIMIT_SIGNUP_IP:-100}
+      STUDYRAG_RATE_LIMIT_EMAIL: ${STUDYRAG_RATE_LIMIT_EMAIL:-3}
+      STUDYRAG_RATE_LIMIT_EMAIL_IP: ${STUDYRAG_RATE_LIMIT_EMAIL_IP:-100}
+      STUDYRAG_RATE_LIMIT_VERIFY: ${STUDYRAG_RATE_LIMIT_VERIFY:-10}
+      STUDYRAG_RATE_LIMIT_VERIFY_IP: ${STUDYRAG_RATE_LIMIT_VERIFY_IP:-100}
+      STUDYRAG_RATE_LIMIT_RESET: ${STUDYRAG_RATE_LIMIT_RESET:-5}
+      STUDYRAG_RATE_LIMIT_RESET_IP: ${STUDYRAG_RATE_LIMIT_RESET_IP:-100}
+      STUDYRAG_RATE_LIMIT_GOOGLE: ${STUDYRAG_RATE_LIMIT_GOOGLE:-10}
+      STUDYRAG_RATE_LIMIT_GOOGLE_IP: ${STUDYRAG_RATE_LIMIT_GOOGLE_IP:-100}
+      STUDYRAG_RATE_LIMIT_GOOGLE_CALLBACK: ${STUDYRAG_RATE_LIMIT_GOOGLE_CALLBACK:-10}
+      STUDYRAG_TRUSTED_PROXY_CIDRS: ${STUDYRAG_TRUSTED_PROXY_CIDRS:-}
+      REDIS_URL: redis://redis:6379/0
+      STUDYRAG_S3_ENDPOINT: http://minio:9000
+      STUDYRAG_S3_BUCKET: ${STUDYRAG_S3_BUCKET:-studyrag}
+      STUDYRAG_S3_ACCESS_KEY: ${MINIO_ROOT_USER}
+      STUDYRAG_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3000/api/health/live', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:RELEASE.2025-02-07T23-21-09Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - object_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
+  object_data:

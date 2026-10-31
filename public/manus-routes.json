@@ -1,0 +1,1 @@
+{"routes":[{"path":"/","title":"StudyRAG"},{"path":"/privacy","title":"Privacy"},{"path":"/courses/:courseId","title":"Course workspace"}]}
