@@ -1,0 +1,9 @@
+
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://studyrag-8pec.onrender.com/api/:path*"
+    }
+  ]
+}
