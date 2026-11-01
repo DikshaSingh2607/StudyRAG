@@ -28,7 +28,7 @@ The platform is being developed with a focus on secure authentication, course ma
 | Backend | Python, FastAPI |
 | Database | PostgreSQL |
 | AI/ML | Generative AI, LLMs, RAG |
-| Email Service | Gmail SMTP |
+| Email Service | Resend HTTPS Email API |
 | Version Control | Git, GitHub |
 | Deployment | Vercel, Backend Hosting |
 
@@ -118,8 +118,9 @@ Configure the following variables in your local environment or deployment platfo
 | Variable | Purpose |
 |---|---|
 | `STUDYRAG_POSTGRES_URL` | PostgreSQL connection |
-| `STUDYRAG_SMTP_URL` | SMTP email configuration |
-| `FRONTEND_URL` | Frontend application URL |
+| `RESEND_API_KEY` | Secret API key for transactional email through Resend |
+| `STUDYRAG_EMAIL_FROM` | Sender address verified in Resend |
+| `STUDYRAG_FRONTEND_URL` | Public frontend origin used for verification/reset links; defaults to `https://studyrag-frontendd.vercel.app` |
 | `SECRET_KEY` | Application security key |
 
 ## 🌐 Deployment
@@ -129,7 +130,7 @@ The planned deployment architecture:
 - **Frontend:** Vercel
 - **Backend:** Render or another compatible hosting provider
 - **Database:** PostgreSQL
-- **Email Service:** SMTP
+- **Email Service:** Resend HTTPS Email API
 
 Production deployment requires configuring public frontend/backend URLs, CORS, database connectivity, and email verification redirects.
 

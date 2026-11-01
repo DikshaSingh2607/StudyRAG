@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from urllib.parse import unquote, urlsplit
+from urllib.parse import urlsplit
 
 from sqlalchemy.engine import make_url
 
@@ -39,21 +39,40 @@ def cookie_samesite() -> str:
     return value
 
 
-def smtp_settings() -> tuple[str, int, bool, str | None, str | None, str]:
-    raw = os.getenv("STUDYRAG_SMTP_URL", "").strip()
-    if not raw:
-        raise RuntimeError("STUDYRAG_SMTP_URL is required for email delivery")
-    parsed = urlsplit(raw)
-    if parsed.scheme not in {"smtp", "smtps"} or not parsed.hostname:
-        raise RuntimeError("STUDYRAG_SMTP_URL must use smtp:// or smtps://")
-    secure = parsed.scheme == "smtps"
-    port = parsed.port or (465 if secure else 587)
-    username = unquote(parsed.username) if parsed.username else None
-    password = unquote(parsed.password) if parsed.password else None
-    sender = os.getenv("STUDYRAG_EMAIL_FROM", "").strip() or username or f"no-reply@{parsed.hostname}"
+def resend_settings() -> tuple[str, str]:
+    api_key = os.getenv("RESEND_API_KEY", "").strip()
+    sender = os.getenv("STUDYRAG_EMAIL_FROM", "").strip()
+    if not api_key or "\n" in api_key or "\r" in api_key:
+        raise RuntimeError("RESEND_API_KEY is required for email delivery")
+    if not sender:
+        raise RuntimeError("STUDYRAG_EMAIL_FROM is required for email delivery")
     if "\n" in sender or "\r" in sender:
         raise RuntimeError("Invalid STUDYRAG_EMAIL_FROM")
-    return parsed.hostname, port, secure, username, password, sender
+    return api_key, sender
+
+
+def frontend_url() -> str:
+    default_url = "https://studyrag-frontendd.vercel.app"
+    raw = (os.getenv("STUDYRAG_FRONTEND_URL", "").strip() or default_url).rstrip("/")
+    if not raw or any(character.isspace() for character in raw):
+        raise RuntimeError("Invalid STUDYRAG_FRONTEND_URL")
+    try:
+        parsed = urlsplit(raw)
+        _ = parsed.port
+    except ValueError as exc:
+        raise RuntimeError("Invalid STUDYRAG_FRONTEND_URL") from exc
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise RuntimeError("Invalid STUDYRAG_FRONTEND_URL")
+    if parsed.scheme != "https" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
+        raise RuntimeError("STUDYRAG_FRONTEND_URL must use HTTPS outside localhost")
+    return raw
 
 
 def rate_limit_window_seconds() -> int:

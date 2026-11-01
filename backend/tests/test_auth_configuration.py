@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from backend.app.config import database_url
+from backend.app.config import database_url, frontend_url
 from backend.app.google_oauth import credentials
 from backend.app.main import app
 from backend.app.rate_limit import bucket_digest, client_address
@@ -63,3 +63,13 @@ def test_rate_limit_bucket_hides_subject_and_address() -> None:
     assert len(digest) == 64
     assert "student" not in digest and "198.51" not in digest
     assert digest != bucket_digest("login", "other@example.test", "198.51.100.10", b"unit-test-key")
+
+
+def test_frontend_url_defaults_to_requested_public_vercel_origin(monkeypatch) -> None:
+    monkeypatch.delenv("STUDYRAG_FRONTEND_URL", raising=False)
+    assert frontend_url() == "https://studyrag-frontendd.vercel.app"
+
+
+def test_frontend_url_uses_configured_origin_and_removes_trailing_slash(monkeypatch) -> None:
+    monkeypatch.setenv("STUDYRAG_FRONTEND_URL", "https://studyrag-frontendd.vercel.app/")
+    assert frontend_url() == "https://studyrag-frontendd.vercel.app"

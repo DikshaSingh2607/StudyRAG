@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .config import cookie_samesite, cookie_secure, rate_limit_limit
+from .config import cookie_samesite, cookie_secure, frontend_url, rate_limit_limit
 from .db import get_db
 from .mailer import send_email
 from .models import AuthSession, AuthToken, User
@@ -107,7 +107,8 @@ async def csrf_bootstrap(request: Request, response: Response) -> dict[str, str]
 
 @router.post("/signup", status_code=202, response_model=MessageOut)
 async def signup(payload: SignupIn, request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
-    origin = browser_origin(request)
+    browser_origin(request)
+    origin = frontend_url()
     email = str(payload.email).strip().lower()
     await enforce_rate_limit(
         db, request, scope="signup", subject=email,
@@ -140,7 +141,7 @@ async def signup(payload: SignupIn, request: Request, db: AsyncSession = Depends
         raise
     except Exception as exc:
         await db.rollback()
-        # The user/token were committed before SMTP. Preserve the account and return an actionable error.
+        # The user/token were committed before email delivery. Preserve the account and return an actionable error.
         raise HTTPException(
             status_code=503,
             detail="Account could not be created or its verification email could not be sent. Check the email service and try again.",
@@ -175,7 +176,8 @@ async def verify_email(payload: TokenIn, request: Request, db: AsyncSession = De
 
 @router.post("/verification/resend", status_code=202, response_model=MessageOut)
 async def resend_verification(payload: EmailIn, request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
-    origin = browser_origin(request)
+    browser_origin(request)
+    origin = frontend_url()
     email = str(payload.email).strip().lower()
     await enforce_rate_limit(
         db, request, scope="verification_resend", subject=email,
@@ -232,7 +234,8 @@ async def me(user: User = Depends(current_user)) -> dict[str, str]:
 
 @router.post("/password/forgot", status_code=202, response_model=MessageOut)
 async def forgot_password(payload: EmailIn, request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
-    origin = browser_origin(request)
+    browser_origin(request)
+    origin = frontend_url()
     email = str(payload.email).strip().lower()
     await enforce_rate_limit(
         db, request, scope="password_forgot", subject=email,
